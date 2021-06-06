@@ -12,6 +12,7 @@ from ase.io import read
 from ase.db import connect
 from matplotlib.ticker import FormatStrFormatter
 from matplotlib import cm
+sys.path.append('..')
 
 
 def get_constants():

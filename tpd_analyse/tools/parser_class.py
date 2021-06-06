@@ -1,6 +1,8 @@
   #!/usr/bin/python
 
 import numpy as np
+import sys
+sys.path.append('..')
 from useful_functions import AutoVivification
 from pprint import pprint
 from ase.db import connect
