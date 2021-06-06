@@ -2,17 +2,17 @@ from tpd_analyse.tools.parser_class import experimentalTPD
 import numpy as np
 from glob import glob
 import matplotlib
-from useful_functions import AutoVivification, get_vibrational_energy
+import os, sys
+sys.path.append('..')
+from useful_functions import AutoVivification#, get_vibrational_energy
 from pprint import pprint
 import matplotlib.pyplot as plt
-import os, sys
 import mpmath as mp
 from ase.thermochemistry import HarmonicThermo, IdealGasThermo
 from ase.io import read
 from ase.db import connect
 from matplotlib.ticker import FormatStrFormatter
 from matplotlib import cm
-sys.path.append('..')
 
 
 def get_constants():
