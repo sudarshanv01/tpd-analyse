@@ -6,7 +6,6 @@ Main file for TPD analysis.
 
 import numpy as np
 from glob import glob
-from useful_functions import AutoVivification
 from pprint import pprint
 import os, sys
 from scipy.optimize import curve_fit, least_squares, minimize
