@@ -13,7 +13,7 @@ def setup_package():
         description = handle.read()
 
     setup(
-        packages=find_packages(),
+        packages=['tpd_analyse'],
         **setup_json
     )
 
