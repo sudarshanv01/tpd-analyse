@@ -1,13 +1,13 @@
 
 import pytest
+from ase.thermochemistry import HarmonicThermo, IdealGasThermo
+from tpd_analyse.tpd import PlotTPD
+from ase.io import read
+import numpy as np
 
 @pytest.fixture
 def generate_tpd_results():
     """ Generate a results dictionary for the tests. """
-    from ase.thermochemistry import HarmonicThermo, IdealGasThermo
-    from tpd_analyse.tpd import PlotTPD
-    from ase.io import read
-    import numpy as np
 
     files = ['tests/input/exposure_0p25.csv']
     atoms = read('tests/input/co.traj')
