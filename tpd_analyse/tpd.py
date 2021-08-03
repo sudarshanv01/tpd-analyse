@@ -38,7 +38,6 @@ class PlotTPD():
             T_rate_min (float): Temperature range where minimum rate of the TPD is expected (K)
             beta (float): Rate of heating (K/s)
             constants (list): Parameters to parse TPD
-            color_map (obj): Color map for different exposures
             thermo_ads (obj): HarmonicThermo for the adsorbate
             thermo_gas (obj): IdealGasThermo for the gas
             bounds (list, optional): Bounds within to fit the coverage of the TPD. Defaults to [].
