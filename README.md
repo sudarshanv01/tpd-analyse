@@ -5,7 +5,7 @@ TPD analysis for first order desorption process
 
 Calculate the adsorption energy, configurational entropy and adsorbate-adsorbate interaction parameter for first order desorption from TPD curves. 
 
-Equations used to fit are described in the manuscipt: How to Extract Adsorption Energies, Adsorbate-adsorbate Interaction Parameters, and Saturation Coverages from Temperature Programmed Desorption Experiments ([link](10.26434/chemrxiv.14525496.v2))
+Equations used to fit are described in the manuscipt: How to Extract Adsorption Energies, Adsorbate-adsorbate Interaction Parameters, and Saturation Coverages from Temperature Programmed Desorption Experiments ([link](https://chemrxiv.org/engage/chemrxiv/article-details/60c75888567dfe0feeec6887))
 
 ## Installation
 
