@@ -77,8 +77,10 @@ if __name__ == '__main__':
                         thermo_ads=vibration_energies_ads,
                         thermo_gas=vibration_energies_gas,
                         plot_temperature=np.linspace(100, 500, 50), 
-                        constants=data_211,
-                        )
+                        T_switch=T_switch_211,
+                        T_max=T_max_211,
+                        T_rate_min=T_rate_min_211,
+                        beta=beta_211)
     TPDClass.get_results()
 
     ## Nested dict of facets and 

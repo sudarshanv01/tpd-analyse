@@ -36,7 +36,7 @@ import matplotlib.pyplot as plt
 
 class PlotTPD():
 
-    def __init__(self, exp_data, order, constants,
+    def __init__(self, exp_data, order, T_switch, T_max, T_rate_min, beta,
                     thermo_ads, thermo_gas, correct_background=True, bounds=[], plot_temperature=np.linspace(100,400),
                     p=101325, initial_guess_theta=0.5, guess_b=0.1):
 
@@ -46,7 +46,11 @@ class PlotTPD():
 
         Args:
             exp_data (list): globbed files with csv
-            order (int): Order of the reaction
+            order (int): Order of the reaction 
+            T_switch (list): Temperatures at which the reaction rate switches (K)
+            T_max (float): Temperature at which the TPD is cutoff (K)
+            T_rate_min (float): Temperature range where minimum rate of the TPD is expected (K)
+            beta (float): Rate of heating (K/s)
             constants (list): Parameters to parse TPD
             color_map (obj): Color map for different exposures
             thermo_ads (obj): HarmonicThermo for the adsorbate
@@ -60,7 +64,6 @@ class PlotTPD():
         """
 
         # Define all the __init__ variables
-        self.constants = constants # Constants for TPD parsing
         self.exp_data = exp_data # globbed files with csv
         self.order = order
         self.thermo_ads = thermo_ads # adsorbate HarmonicThermo
@@ -70,6 +73,11 @@ class PlotTPD():
         self.bounds = bounds
         self.correct_background = correct_background
         self.initial_guess_theta = initial_guess_theta
+        self.guess_b = guess_b
+        self.T_switch = T_switch
+        self.T_max = T_max
+        self.T_rate_min = T_rate_min
+        self.beta = beta
 
         # Results
         self.norm_results = {} # Normalised results 
@@ -78,10 +86,8 @@ class PlotTPD():
         self.theta_eq_p = {} # Equilibrium coverages positive error
         self.theta_eq_n = {} # Equilibrium coverages negative error
         self.E0 = {} # Zero coverage energy
-        self.b = {} # ads-ads interaction term
         self.dG = {} # dG for adsorption
         self.temperature_range = {} # temperature range to plot
-        self.guess_b = guess_b
 
     def _exponential_fit(self, temperature, a, k):
         """Exponential fit to the tail of the TPD to remove pumping 
@@ -101,21 +107,26 @@ class PlotTPD():
     def get_results(self):
         """Perform the TPD analysis
         """
-        T_switch, T_max, T_rate_min, beta = self.constants
+        # T_switch, T_max, T_rate_min, beta = self.constants
+        # Do some checks on the temperatures
+        if isinstance(self.T_switch, float):
+            self.T_switch = [self.T_switch]
+
+        T_max = self.T_max
+        T_rate_min = self.T_rate_min
+        beta = self.beta
+        T_switch = self.T_switch
+
+        assert T_max > np.max(T_switch); 'The maximum temperature must be greater than when the switch occurs'
+        assert np.max(T_rate_min) > T_max; 'Maximin temperature of the TPD must be lower than that of the flat region'
 
         # Create the temperature range based on the switch data
-        assert len(T_switch) < 3 , 'Only implemented switch lower than 2 '
-        if len(T_switch) == 1:
-            temperature_ranges = [
-                                    [0, T_switch[0]], ## Terrace
-                                    [T_switch[0], T_max] ## Step
-                                ]
-        elif len(T_switch) == 2:
-            temperature_ranges = [
-                [0, T_switch[0]], # Terrace 1
-                [T_switch[0], T_switch[1]], # Terrace 2
-                [T_switch[1], T_max] # step
-            ]
+        temperature_ranges = []
+        for i in range(len(T_switch)+1):
+            if i == 0:
+                temperature_ranges.append([0, T_switch[i]])
+            elif i == len(T_switch):
+                temperature_ranges.append([T_switch[i-1], T_max])
 
         # range of temperatures for different TPD values
         self.temperature_range = temperature_ranges
@@ -167,15 +178,6 @@ class PlotTPD():
                 temperature_fit = self.norm_results[exposure].temperature[indices][args_accept]
                 self.results[surface_index][exposure]['temperature_fit'] = temperature_fit
 
-                ## TODO: Is bounds needed in code?
-                # # check if relative theta has bounds
-                # if self.bounds:
-                #     index_bounds = [i for i in range(len(self.theta_rel[surface_index][exposure])) \
-                #              if min(self.bounds) <=  self.theta_rel[surface_index][exposure][i] <= max(self.bounds)]
-                #     self.Ed[surface_index][exposure] = self.Ed[surface_index][exposure][index_bounds]
-                #     self.theta_rel[surface_index][exposure] = self.theta_rel[surface_index][exposure][index_bounds]
-                #     temperature_fit = temperature_fit[index_bounds]
-                    
                 # Fit the Desorption energy curve to the desorption energy equation
                 # First get good initial guesses for parameters
                 # For E0 we just take the mean of all the values
@@ -189,21 +191,6 @@ class PlotTPD():
                                                 ydata = self.results[surface_index][exposure]['Ed'],
                                                 p0 = [guess_E0, guess_b, self.initial_guess_theta], 
                                                 )
-
-                # # Least squares routine
-                # TODO better minimisation routine?
-                # res = minimize( 
-                #     self._least_sq_Ed_theta, 
-                #     x0=[guess_E0, guess_b, 0.8], 
-                #     args=(temperature_fit, self.theta_rel[surface_index][exposure], self.Ed[surface_index][exposure]),
-                #     bounds=bounds,
-                #     # options={'ftol': 1e-2 }
-                #     tol=1e-6,
-                # ) 
-                # popt = res.x
-                # print(popt, guess_b)
-                # print(res.message)
-                # print(self._least_sq_Ed_theta(res.x, temperature_fit, self.theta_rel[surface_index][exposure], self.Ed[surface_index][exposure] ))
 
                 residual = self._least_sq_Ed_theta(popt, temperature=temperature_fit,
                     theta_rel = self.results[surface_index][exposure]['theta_rel'],
