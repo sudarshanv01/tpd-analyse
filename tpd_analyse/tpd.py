@@ -38,7 +38,7 @@ class PlotTPD():
 
     def __init__(self, exp_data, order, T_switch, T_max, T_rate_min, beta,
                     thermo_ads, thermo_gas, correct_background=True, bounds=[], plot_temperature=np.linspace(100,400),
-                    p=101325, initial_guess_theta=0.5, guess_b=0.1):
+                    p=101325, initial_guess_theta=0.5, guess_b=0.1, calculate_eq_coverage=True):
 
         """Perform the temperature programmed desorption analysis for a surface 
         based on configurational entropy an interaction parameters and a zero coverage
@@ -78,6 +78,7 @@ class PlotTPD():
         self.T_max = T_max
         self.T_rate_min = T_rate_min
         self.beta = beta
+        self.calculate_eq_coverage = calculate_eq_coverage
 
         # Results
         self.norm_results = {} # Normalised results 
@@ -203,7 +204,10 @@ class PlotTPD():
                 self.results[surface_index][exposure]['error'] = residual
                 self.results[surface_index][exposure]['Ed_fitted'] = self._fit_Ed_theta(temperature_fit, \
                                                 *popt, self.results[surface_index][exposure]['theta_rel']) 
-                
+
+                if not self.calculate_eq_coverage:
+                    continue
+
                 # Calculate the coverage at equilbirum
                 self.theta_eq.setdefault(surface_index, {})[exposure] = {}
                 self.theta_eq_p.setdefault(surface_index, {})[exposure] = {}
