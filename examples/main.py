@@ -1,5 +1,21 @@
 
-""" Main Script to plot Figure 1 of the Gold paper """
+"""
+Example to generate the list of plots in:
+10.26434/chemrxiv.14525496.v2
+
+The idea is to determine the contribution of 
+1. zero-coverage energy
+2. configurational entropy
+3. adsorbate-adsorbate interaction
+
+to the overall free energy of adsorption for a first order process.
+
+Inputs:
+1. the path to the directory containing the input files
+2. the path to the directory containing the plots
+3. Inputs about each TPD
+
+"""
 
 import numpy as np
 from glob import glob
@@ -18,30 +34,44 @@ from tpd_analyse.tpd import PlotTPD
 
 if __name__ == '__main__':
 
-    ## This is where all the output is stored
-    output = 'output_figures/'
-    os.system('mkdir -p ' + output)
-
-    fig, ax = plt.subplots(1, 1, figsize=(8,6), squeeze=False)
-
-    ## Files with the different exposure
+    # Input files for CO on Gold 211
     files = glob('input_TPD/Au_211/*.csv')
-    ## Order of the reaction
+
+    # Output directory
+    out_dir = 'plots/'
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    # plot the figures here
+    fig, ax = plt.subplots(4, 1, figsize=(8,6), squeeze=False, constrained_layout=True)
+    cmap = cm.get_cmap('viridis', 12)
+
+    # order of the reaction
     order = 1
 
-    # For 211 TPD
-    T_switch_211 = [170] #[110, 170] #[110, 165, 175] #K converting between 111 and 211 step
-    T_max_211 = 250 #K Where the TPD spectra ends
-    T_rate_min_211 = [250, 300] #K Where the rate becomes zero - baseline
-    beta_211 = 3 #k/s Heating rate
+    # temperature at which the switch occurs if there is more than one peak
+    T_switch_211 = [170] 
+    # temperature at which the TPD ends
+    T_max_211 = 250 
+    # baseline is computed at this temperature
+    T_rate_min_211 = [250, 300] 
+    # Heating rate
+    beta_211 = 3 
+    # combine everything into one list
     data_211 = [T_switch_211, T_max_211, T_rate_min_211, beta_211]
 
+    # details of the gas phase molecule
+    # atoms object for the gas molecule
     atoms = read('input_TPD/co.traj')
+    # Vibrational frequencies in eV
     thermo_gas = 0.00012 * np.array([2121.52, 39.91, 39.45])
-    vibration_energies_gas = IdealGasThermo(thermo_gas, atoms = atoms, \
+    # Get the free energies of the gas phase molecule
+    vibration_energies_gas = IdealGasThermo(thermo_gas, atoms = atoms,
             geometry='linear', symmetrynumber=1, spin=0)
+    # Harmonic frequencies in cm^-1
     vibration_energies_ads = HarmonicThermo(0.00012 * np.array([2044.1, 282.2, 201.5, 188.5, 38.3, 11.5]))
-    cmap = cm.get_cmap('viridis', 12)
+
+    # TPD class to get the needed data 
     TPDClass = PlotTPD(exp_data=files,
                         order=order,
                         thermo_ads=vibration_energies_ads,
@@ -50,6 +80,7 @@ if __name__ == '__main__':
                         constants=data_211,
                         )
     TPDClass.get_results()
+
     ## Nested dict of facets and 
     for surface_index, facet_no in enumerate(TPDClass.results):
         # Plot the TPD in normalised form
@@ -64,5 +95,4 @@ if __name__ == '__main__':
                                 )
         ax[0,0].set_xlabel(r'$\theta$ / ML')
         ax[0,0].set_ylabel(r'$rate_{norm}$ / arb. units')
-        fig.tight_layout()
-        fig.savefig(os.path.join(output, 'figure.pdf'))
+        fig.savefig(os.path.join(out_dir, 'figure.pdf'))
