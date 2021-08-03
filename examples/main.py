@@ -86,9 +86,9 @@ if __name__ == '__main__':
         # Plot the TPD in normalised form
         for index_exposure, exposure in enumerate(sorted(TPDClass.results[surface_index])):
             if surface_index == len(TPDClass.results)-1:
-                theta = TPDClass.theta_rel[surface_index][exposure] * TPDClass.theta_sat[surface_index][exposure] 
+                theta = TPDClass.results[surface_index][exposure]['theta_rel'] * TPDClass.results[surface_index][exposure]['theta_sat']
                 ax[0,0].plot(theta,
-                                TPDClass.Ed[surface_index][exposure],
+                                TPDClass.results[surface_index][exposure]['Ed'],
                                 '.', \
                                 color=cmap(index_exposure), \
                                 label=str(exposure)+'L'
