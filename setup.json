@@ -3,6 +3,11 @@
 	"author_email": "vijays@fysik.dtu.dk",
 	"description": "A python module of determining adsorption energies from temperature programmed desorption curves",
 	"license": "MIT",
+        "tests": [
+		"pgtest~=1.3",
+		"pytest~=6.0",
+		"pytest-regressions~=1.0"
+	    ],
 	"install_requires": [
 		"numpy",
 		"scipy",

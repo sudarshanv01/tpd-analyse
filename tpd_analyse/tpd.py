@@ -78,6 +78,7 @@ class PlotTPD():
         self.T_max = T_max
         self.T_rate_min = T_rate_min
         self.beta = beta
+        self.calculate_eq_coverage = calculate_eq_coverage
 
         # Results
         self.norm_results = {} # Normalised results 
