@@ -10,29 +10,16 @@ from useful_functions import AutoVivification
 from pprint import pprint
 import os, sys
 from scipy.optimize import curve_fit, least_squares, minimize
-from matplotlib import cm
-from tpd_analyse.tools.parser_function import get_stable_site_vibrations, get_gas_vibrations, \
-                            get_coverage_details, diff_energies, \
-                            get_lowest_absolute_energies,\
-                            get_differential_energy,\
-                            accept_states, \
-                            get_constants, \
-                            stylistic_comp, stylistic_exp
-
-from tpd_analyse.tools.parser_class import ParseInfo, experimentalTPD
+from tpd_analyse.tools.parser_class import experimentalTPD
 import mpmath as mp
+from mpmath import mpf
 from ase.thermochemistry import HarmonicThermo, IdealGasThermo
 from ase.io import read
 from ase.db import connect
-import matplotlib
 import csv
 from ase.units import kB
-from mpmath import mpf
 from scipy import optimize
-from matplotlib.ticker import FormatStrFormatter
-from matplotlib import cm
 from scipy.optimize import newton
-import matplotlib.pyplot as plt
 
 class PlotTPD():
 
@@ -274,10 +261,7 @@ class PlotTPD():
             Ed_fit.append(Ed)
         residual = Ed_real - Ed_fit
         mea = np.mean([np.abs(a) for a in residual])
-        # square_error = np.square([np.abs(a) for a in residual])
-        # mean_sq_error = np.mean(square_error)
-        # rms = np.sqrt(mean_sq_error) 
-        return mea #square_error #mea#Ed_real - Ed_fit
+        return mea 
 
     def _fit_Ed_theta(self, temperature, E_0, b, theta_sat, theta_rel):
         """Fit the desorption energy to the relative coverage
@@ -356,8 +340,6 @@ class PlotTPD():
             partial_co = self.p / 101325.
             # convert desorption energy into adsorption energy
             dG0 = -1 * E0 -1 * T * entropy_difference
-            # K = np.exp( - dG / kB / T)
-            # theta =  K * partial_co / (1 + K * partial_co)
             K_guess = np.exp( -1 * dG0 / kB / T )
             theta_guess = K_guess / ( 1 + K_guess ) 
 

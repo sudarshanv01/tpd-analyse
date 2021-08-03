@@ -1,15 +1,16 @@
 
+import pytest
 
-
-def test_first_order():
-    """ Run a simple first order calculation and check if outputs are present. """
+@pytest.fixture
+def generate_tpd_results():
+    """ Generate a results dictionary for the tests. """
     from ase.thermochemistry import HarmonicThermo, IdealGasThermo
     from tpd_analyse.tpd import PlotTPD
     from ase.io import read
     import numpy as np
 
-    files = ['input/exposure_0p25.csv']
-    atoms = read('input/co.traj')
+    files = ['tests/input/exposure_0p25.csv']
+    atoms = read('tests/input/co.traj')
     thermo_gas = 0.00012 * np.array([2121.52, 39.91, 39.45])
     vibration_energies_gas = IdealGasThermo(thermo_gas, atoms = atoms,
             geometry='linear', symmetrynumber=1, spin=0)
@@ -25,8 +26,14 @@ def test_first_order():
                         T_max=250,
                         T_rate_min=[250,300],
                         beta=2)
-    TPDClass.get_results()
+    # TPDClass.get_results()
 
-    assert hasattr(TPDClass, 'results')
+    return TPDClass
+
+
+def test_first_order(generate_tpd_results):
+    """ Run a simple first order calculation and check if outputs are present. """
+    # assert hasattr(generate_tpd_results, 'results')
+    assert 'results' in generate_tpd_results.__dict__
 
 

@@ -1,6 +1,5 @@
 import numpy as np
 import sys
-import matplotlib.pyplot as plt
 import os
 import csv
 from scipy.optimize import curve_fit, minimize, least_squares
