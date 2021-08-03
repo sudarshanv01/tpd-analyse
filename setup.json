@@ -1,0 +1,16 @@
+{
+	"author": "Sudarshan Vijay",
+	"author_email": "vijays@fysik.dtu.dk",
+	"description": "A python module of determining adsorption energies from temperature programmed desorption curves",
+	"license": "MIT",
+	"install_requires": [
+		"numpy",
+		"scipy",
+		"matplotlib",
+		"mpmath",
+		"ase"
+	],
+	"name": "tpd_analyse",
+	"python_requires": ">=3.6",
+	"version": "0.1.0"
+}
