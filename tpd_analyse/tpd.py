@@ -1,3 +1,9 @@
+
+"""
+Main file for TPD analysis.
+"""
+
+
 import numpy as np
 from glob import glob
 from useful_functions import AutoVivification
@@ -32,11 +38,11 @@ class PlotTPD():
 
     def __init__(self, exp_data, order, constants,
                     thermo_ads, thermo_gas, correct_background=True, bounds=[], plot_temperature=np.linspace(100,400),
-                    p=101325, initial_guess_theta=0.5):
+                    p=101325, initial_guess_theta=0.5, guess_b=0.1):
 
         """Perform the temperature programmed desorption analysis for a surface 
         based on configurational entropy an interaction parameters and a zero coverage
-        energy term
+        energy term.
 
         Args:
             exp_data (list): globbed files with csv
@@ -48,6 +54,9 @@ class PlotTPD():
             bounds (list, optional): Bounds within to fit the coverage of the TPD. Defaults to [].
             plot_temperature (array, optional): Temperature range to plot the equilbirum coverage. Defaults to np.linspace(100,400).
             p (float, optional): Pressure of gas molecule. Defaults to 101325.
+            initial_guess_theta (float, optional): Initial guess for theta. Defaults to 0.5.
+            guess_b (float, optional): Initial guess for b. Defaults to 0.1.
+
         """
 
         # Define all the __init__ variables
@@ -63,20 +72,16 @@ class PlotTPD():
         self.initial_guess_theta = initial_guess_theta
 
         # Results
-        self.norm_results = AutoVivification()
-        self.results = AutoVivification()
-        self.Ed = AutoVivification()
-        self.theta_rel = AutoVivification()
-        self.theta_eq = AutoVivification()
-        self.theta_eq_p = AutoVivification()
-        self.theta_eq_n = AutoVivification()
-        self.E0 = AutoVivification()
-        self.Ed_fitted = AutoVivification()
-        self.b = AutoVivification()
-        self.theta_sat = AutoVivification()
-        self.dG = AutoVivification()
-        self.error = AutoVivification() # Error in Ed fit
-        self.temperature_range = {} # for plotting in main figure
+        self.norm_results = {} # Normalised results 
+        self.results = {} # Final results
+        self.theta_eq = {} # Equilibrium coverages
+        self.theta_eq_p = {} # Equilibrium coverages positive error
+        self.theta_eq_n = {} # Equilibrium coverages negative error
+        self.E0 = {} # Zero coverage energy
+        self.b = {} # ads-ads interaction term
+        self.dG = {} # dG for adsorption
+        self.temperature_range = {} # temperature range to plot
+        self.guess_b = guess_b
 
     def _exponential_fit(self, temperature, a, k):
         """Exponential fit to the tail of the TPD to remove pumping 
@@ -115,7 +120,7 @@ class PlotTPD():
         # range of temperatures for different TPD values
         self.temperature_range = temperature_ranges
 
-        # 1. Get the TPD results which includes background subtraction
+        # Get the TPD results which includes background subtraction
         # for each exposure
         for index, f in enumerate(sorted(self.exp_data)):
             exposure = float(f.split('/')[-1].split('.')[0].split('_')[1].replace('p', '.'))
@@ -129,33 +134,36 @@ class PlotTPD():
 
             # Iterate over the different facets in temperature ranges
             for surface_index in range(len(temperature_ranges)):
-
+                
                 T_range = temperature_ranges[surface_index]
+                # Operate only on the right temperature range
                 indices = [ a for a in range(len(self.norm_results[exposure].temperature)) \
                         if T_range[0] < self.norm_results[exposure].temperature[a] < T_range[1] ] 
 
+                # Normalise the data
+                self.results.setdefault(surface_index, {})[exposure] = {}
                 self.results[surface_index][exposure]['temperature'] = self.norm_results[exposure].temperature[indices]
                 self.results[surface_index][exposure]['normalized_rate'] = self.norm_results[exposure].normalized_rate[indices]
 
-                # create variable within look for easy calling 
+                # some variables to make it easy to run
                 temperatures = self.results[surface_index][exposure]['temperature']
                 rates = self.results[surface_index][exposure]['normalized_rate']
 
-                #2. For each point get the energy of desorption as a function of the coverage
+                # For each point get the energy of desorption as a function of the coverage
                 data = self._Ed_temp_dependent(
                             temperature=temperatures, 
                             rate=rates,
-                            beta=beta,
-                            )
+                            beta=beta,)
 
-                ## if there are nans
+                # correct for any nans that could be in place
                 args_accept = [i for i in range(len(data[0])) \
                                     if np.isfinite(data[0][i]) and \
                                     data[1][i] > 0]
 
-                self.Ed[surface_index][exposure], self.theta_rel[surface_index][exposure] = data
-                self.Ed[surface_index][exposure] = self.Ed[surface_index][exposure][args_accept]
-                self.theta_rel[surface_index][exposure] = self.theta_rel[surface_index][exposure][args_accept]
+
+                self.results[surface_index][exposure]['Ed'] = data[0][args_accept]
+                self.results[surface_index][exposure]['theta_rel'] = data[1][args_accept]
+
                 temperature_fit = self.norm_results[exposure].temperature[indices][args_accept]
                 self.results[surface_index][exposure]['temperature_fit'] = temperature_fit
 
@@ -168,18 +176,18 @@ class PlotTPD():
                 #     self.theta_rel[surface_index][exposure] = self.theta_rel[surface_index][exposure][index_bounds]
                 #     temperature_fit = temperature_fit[index_bounds]
                     
-                # 3. Fit the Desorption energy curve to the desorption energy equation
-                ## First get good initial guesses for parameters
-                guess_E0 = self.Ed[surface_index][exposure][0]
-                linear_region = [i for i in range(len(self.Ed[surface_index][exposure])) if 0.25 < self.Ed[surface_index][exposure][i] < 0.75  ]
-                guess_b = 0.1#-1 * np.polyfit(self.theta_rel[surface_index][exposure][linear_region], self.Ed[surface_index][exposure][linear_region], 1)[0]
+                # Fit the Desorption energy curve to the desorption energy equation
+                # First get good initial guesses for parameters
+                # For E0 we just take the mean of all the values
+                guess_E0 = np.mean(self.results[surface_index][exposure]['Ed']) 
+                guess_b = self.guess_b 
 
                 popt, pcov = curve_fit(\
-                lambda temp, E0, b, theta_sat: self._fit_Ed_theta(temp, E0, b, theta_sat, \
-                                            self.theta_rel[surface_index][exposure]), \
-                                            xdata=temperature_fit,
-                                            ydata=self.Ed[surface_index][exposure],
-                                            p0=[guess_E0, guess_b, self.initial_guess_theta], 
+                lambda temp, E0, b, theta_sat:  self._fit_Ed_theta(temp, E0, b, theta_sat,
+                                                self.results[surface_index][exposure]['theta_rel']),
+                                                xdata = temperature_fit,
+                                                ydata = self.results[surface_index][exposure]['Ed'],
+                                                p0 = [guess_E0, guess_b, self.initial_guess_theta], 
                                                 )
 
                 # # Least squares routine
@@ -197,39 +205,40 @@ class PlotTPD():
                 # print(res.message)
                 # print(self._least_sq_Ed_theta(res.x, temperature_fit, self.theta_rel[surface_index][exposure], self.Ed[surface_index][exposure] ))
 
-                residual = self._least_sq_Ed_theta(popt, temperature=temperature_fit, theta_rel=self.theta_rel[surface_index][exposure], \
-                    Ed_real=self.Ed[surface_index][exposure])
+                residual = self._least_sq_Ed_theta(popt, temperature=temperature_fit,
+                    theta_rel = self.results[surface_index][exposure]['theta_rel'],
+                    Ed_real = self.results[surface_index][exposure]['Ed'],)
+                
+                self.results[surface_index][exposure]['E0'] = popt[0]
+                self.results[surface_index][exposure]['b'] = popt[1]
+                self.results[surface_index][exposure]['theta_sat'] = popt[2]
 
-                self.E0[surface_index][exposure], self.b[surface_index][exposure], self.theta_sat[surface_index][exposure], \
-                                = popt
-                self.error[surface_index][exposure] = residual#np.sqrt(np.diag(pcov)) #self._least_sq_Ed_theta(res.x, temperature_fit, self.theta_rel[surface_index][exposure], self.Ed[surface_index][exposure] ) #np.sqrt(np.diag(pcov))
-                self.Ed_fitted[surface_index][exposure] = self._fit_Ed_theta(temperature_fit, \
-                                                *popt, self.theta_rel[surface_index][exposure] )
-                # 4. Calculate the coverage at equilbirum
+                self.results[surface_index][exposure]['error'] = residual
+                self.results[surface_index][exposure]['Ed_fitted'] = self._fit_Ed_theta(temperature_fit, \
+                                                *popt, self.results[surface_index][exposure]['theta_rel']) 
+                
+                # Calculate the coverage at equilbirum
+                self.theta_eq.setdefault(surface_index, {})[exposure] = {}
+                self.theta_eq_p.setdefault(surface_index, {})[exposure] = {}
+                self.theta_eq_n.setdefault(surface_index, {})[exposure] = {} 
+                self.dG.setdefault(surface_index, {})[exposure] = {}
+
                 self.theta_eq[surface_index][exposure], self.dG[surface_index][exposure]\
                  = self._get_equilibirum_coverage(
-                            E0=self.E0[surface_index][exposure], 
-                            b=self.b[surface_index][exposure],
+                            E0 = self.results[surface_index][exposure]['E0'],
+                            b = self.results[surface_index][exposure]['b'], 
                             )
                 self.theta_eq_p[surface_index][exposure], _ \
                  = self._get_equilibirum_coverage(
-                            E0=self.E0[surface_index][exposure]+self.error[surface_index][exposure], 
-                            b=self.b[surface_index][exposure],
+                            E0 = self.results[surface_index][exposure]['E0'] + self.results[surface_index][exposure]['error'], 
+                            b = self.results[surface_index][exposure]['b'], 
                             )
                 self.theta_eq_n[surface_index][exposure], _ \
                  = self._get_equilibirum_coverage(
-                            E0=self.E0[surface_index][exposure]-self.error[surface_index][exposure],
-                            b=self.b[surface_index][exposure],
+                            E0 = self.results[surface_index][exposure]['E0'] - self.results[surface_index][exposure]['error'],
+                            b = self.results[surface_index][exposure]['b'],
                             )
                 
-                ######## PLOTS ##########
-
-                # total_coverage = self.theta_sat[surface_index][exposure] * self.theta_rel[surface_index][exposure]
-                # interaction_term = - self.b[surface_index][exposure] * self.theta_sat[surface_index][exposure] * self.theta_rel[surface_index][exposure]
-                # config_term = - kB * temperature_fit * np.log(self.theta_sat[surface_index][exposure]*self.theta_rel[surface_index][exposure] / ( 1 - self.theta_sat[surface_index][exposure]*self.theta_rel[surface_index][exposure]))
-
-
-
 
     def _Ed_temp_dependent(self, temperature, rate, beta):
         """Gets the desorption energy as a function of the temperature
