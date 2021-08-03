@@ -92,52 +92,6 @@ class experimentalTPD:
         self.temperature = self.exp_temperature#np.array(normalized_data['temperature'])
 
 
-    # def _exponential_fit(self, x, temperature_fit, rate_fit, temp_range):
-    #     """Fitting sum of exponents to get the decay for each TPD
-
-    #     :param temperature_fit: fit for tail of tpd
-    #     :type temperature_fit: list
-    #     :param rate_fit: fit for tail for tpd (rate)
-    #     :type rate_fit: list
-    #     :param temp_range: all temp ranges in [x,y] format
-    #     :type temp_range: list
-    #     :return: square residual
-    #     :rtype: float
-    #     """
-    #     # get the initial guesses 
-    #     number = len(temp_range)-1   ## First one doesn't count
-    #     a_all = x[0:number]
-    #     k_all = x[number:]
-    #     # print(a_all, k_all)
-    #     assert len(a_all) == len(k_all) 
-
-    #     # prepare decay functions 
-    #     fit_end = []
-    #     for T in temperature_fit:
-    #         fitting = []
-    #         for i in range(len(a_all)):
-    #             f = a_all[i]  * np.exp(- k_all[i] * ( T - temp_range[i+1][0] ) )
-    #             fitting.append(f)
-    #         fit_end.append(np.sum(fitting))
-        
-    #     fit_end = np.array(fit_end)
-    #     rate_fit = np.array(rate_fit)
-    #     ssr = np.sum(np.square(rate_fit - fit_end ))
-
-    #     return ssr
-
-    # def _background(self, x, temperature_all, temp_range):
-    #     # get the initial guesses 
-    #     a, k = x
-    #     # prepare decay functions 
-    #     fit_end = []
-    #     for T in temperature_all:
-    #         f = a * np.exp(- k * ( T - temp_range[-1][0] ) )
-    #         fit_end.append(f)
-
-    #     return fit_end   
-
-
     def _exponential_fit(self, temperature, a, k):
         """Exponential fit to the tail of the TPD to remove pumping 
         related rates
