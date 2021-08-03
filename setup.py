@@ -14,6 +14,8 @@ def setup_package():
 
     setup(
         packages=['tpd_analyse'],
+        long_description=description,
+        long_description_content_type='text/markdown',
         **setup_json
     )
 
