@@ -24,7 +24,7 @@ class PlotTPD():
 
     def __init__(self, exp_data, order, T_switch, T_max, T_rate_min, beta,
                     thermo_gas, thermo_ads=None, correct_background=True, bounds=[], plot_temperature=np.linspace(100,400),
-                    p=101325, initial_guess_theta=0.5, guess_b=0.1, calculate_eq_coverage=True):
+                    p=101325, initial_guess_theta=0.5, guess_b=0.1, calculate_eq_coverage=True, theta_range=None):
 
         """Perform the temperature programmed desorption analysis for a surface 
         based on configurational entropy an interaction parameters and a zero coverage
@@ -45,6 +45,7 @@ class PlotTPD():
             p (float, optional): Pressure of gas molecule. Defaults to 101325.
             initial_guess_theta (float, optional): Initial guess for theta. Defaults to 0.5.
             guess_b (float, optional): Initial guess for b. Defaults to 0.1.
+            theta_range (list, optional): Range of theta to fit. Defaults to None.
 
         """
 
@@ -64,6 +65,7 @@ class PlotTPD():
         self.T_rate_min = T_rate_min
         self.beta = beta
         self.calculate_eq_coverage = calculate_eq_coverage
+        self.theta_range = theta_range
 
         # Results
         self.norm_results = {} # Normalised results 
@@ -116,7 +118,6 @@ class PlotTPD():
                     temperature_ranges.append([T_switch[i-1], T_max])
 
         # range of temperatures for different TPD values
-        print(temperature_ranges)
         self.temperature_range = temperature_ranges
 
         # Get the TPD results which includes background subtraction
@@ -159,6 +160,12 @@ class PlotTPD():
                                     if np.isfinite(data[0][i]) and \
                                     data[1][i] > 0]
 
+                # Check if there is a coverage range that is chosen 
+                if self.theta_range is not None:
+                    # If there is a range of theta values to fit then
+                    # only use the data that is within that range
+                    args_accept = [i for i in args_accept \
+                                    if self.theta_range[0] < data[1][i] < self.theta_range[1]]
 
                 self.results[surface_index][exposure]['Ed'] = data[0][args_accept]
                 self.results[surface_index][exposure]['theta_rel'] = data[1][args_accept]
@@ -191,6 +198,18 @@ class PlotTPD():
                 self.results[surface_index][exposure]['error'] = residual
                 self.results[surface_index][exposure]['Ed_fitted'] = self._fit_Ed_theta(temperature_fit, \
                                                 *popt, self.results[surface_index][exposure]['theta_rel']) 
+                
+                self.results[surface_index][exposure]['configurational_entropy'] = \
+                    self._get_configuration_entropy_contribution(temperature_fit, \
+                                                self.results[surface_index][exposure]['theta_sat'], \
+                                                self.results[surface_index][exposure]['theta_rel'], \
+                                        )
+                self.results[surface_index][exposure]['ads_ads_interaction'] = \
+                    self._get_ads_ads_interaction(temperature_fit, \
+                                                self.results[surface_index][exposure]['theta_sat'], \
+                                                self.results[surface_index][exposure]['theta_rel'], \
+                                                self.results[surface_index][exposure]['b'], \
+                                        )
 
                 if not self.calculate_eq_coverage:
                     continue
@@ -262,6 +281,38 @@ class PlotTPD():
         residual = Ed_real - Ed_fit
         mea = np.mean([np.abs(a) for a in residual])
         return mea 
+
+    def _get_configuration_entropy_contribution(self, temperature, theta_sat, theta_rel):
+        """Get the contribution of the configuration entropy to the total energy of desorption.
+        Args:
+            temperature (list): temperature range
+            theta_sat (float): saturation coverage of TPD
+            theta_rel (list): relative coverage of TPD
+
+        Returns:
+            E_config (list): contribution of the configuration entropy to the total entropy
+        """
+        E_config = []
+        for i in range(len(temperature)):
+            Ec = -  kB * temperature[i] * np.log(theta_sat*theta_rel[i] / ( 1 - theta_sat*theta_rel[i]))
+            E_config.append(Ec)
+        return E_config
+    
+    def _get_ads_ads_interaction(self, temperature, theta_sat, theta_rel, b):
+        """Get the contribution of the saturation coverage to the total energy of desorption.
+        Args:
+            temperature (list): temperature range
+            theta_sat (float): saturation coverage of TPD
+            theta_rel (list): relative coverage of TPD
+            b (float): slope of the saturation coverage
+
+        Returns:
+            E_b (list) : contribution of the saturation coverage to the total entropy
+        """
+        E_b = []
+        for i in range(len(temperature)):
+            E_b.append(-b * theta_rel[i] * theta_sat)
+        return E_b
 
     def _fit_Ed_theta(self, temperature, E_0, b, theta_sat, theta_rel):
         """Fit the desorption energy to the relative coverage
