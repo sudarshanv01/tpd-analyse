@@ -23,7 +23,7 @@ from scipy.optimize import newton
 class PlotTPD():
 
     def __init__(self, exp_data, order, T_switch, T_max, T_rate_min, beta,
-                    thermo_ads, thermo_gas, correct_background=True, bounds=[], plot_temperature=np.linspace(100,400),
+                    thermo_gas, thermo_ads=None, correct_background=True, bounds=[], plot_temperature=np.linspace(100,400),
                     p=101325, initial_guess_theta=0.5, guess_b=0.1, calculate_eq_coverage=True):
 
         """Perform the temperature programmed desorption analysis for a surface 
@@ -95,7 +95,7 @@ class PlotTPD():
         """
         # T_switch, T_max, T_rate_min, beta = self.constants
         # Do some checks on the temperatures
-        if isinstance(self.T_switch, float):
+        if isinstance(self.T_switch, (int,float)):
             self.T_switch = [self.T_switch]
 
         T_max = self.T_max
@@ -103,8 +103,8 @@ class PlotTPD():
         beta = self.beta
         T_switch = self.T_switch
 
-        assert T_max > np.max(T_switch); 'The maximum temperature must be greater than when the switch occurs'
-        assert np.max(T_rate_min) > T_max; 'Maximin temperature of the TPD must be lower than that of the flat region'
+        assert T_max >= np.max(T_switch); 'The maximum temperature must be greater than when the switch occurs'
+        assert np.max(T_rate_min) >= T_max; 'Maximum temperature of the TPD must be lower than that of the flat region'
 
         # Create the temperature range based on the switch data
         temperature_ranges = []
@@ -112,9 +112,11 @@ class PlotTPD():
             if i == 0:
                 temperature_ranges.append([0, T_switch[i]])
             elif i == len(T_switch):
-                temperature_ranges.append([T_switch[i-1], T_max])
+                if T_switch[i-1] != T_max:
+                    temperature_ranges.append([T_switch[i-1], T_max])
 
         # range of temperatures for different TPD values
+        print(temperature_ranges)
         self.temperature_range = temperature_ranges
 
         # Get the TPD results which includes background subtraction

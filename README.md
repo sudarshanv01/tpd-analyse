@@ -33,7 +33,7 @@ All inputs must be passed to the central class `PlotTPD`. An example of some pos
 
 1. `exp_data`: list of filenames. Each filename must be of the format `exposure_<some_value>.csv` where some_value can be the exposure in any units. 
 2. `order`: currently only first order desorption reactions are implemented, so `order=1`
-3. `thermo_ads`: Here the `ase` class `HarmonicThermo` can be passed with the required inputs for the adsorbate(s) of interest. More information about the class can be found [here](https://wiki.fysik.dtu.dk/ase/ase/thermochemistry/thermochemistry.html).
+3. `thermo_ads` (optional): Here the `ase` class `HarmonicThermo` can be passed with the required inputs for the adsorbate(s) of interest. More information about the class can be found [here](https://wiki.fysik.dtu.dk/ase/ase/thermochemistry/thermochemistry.html).
 4.  `thermo_gas`: Similar to the `thermo_ads`, only for gas molecules. One option is to use `IdealGasThermo`
 5.  `plot_temperature`: A temperature range that the equibirium coverage can be determined in. An example range would be `np.linspace(100, 500)
 6.  `T_switch`: Is there are more than one processes occuring in one TPD plot, supply a list of temperatures to switch from one to another in K.
