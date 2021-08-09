@@ -24,7 +24,7 @@ class PlotTPD():
 
     def __init__(self, exp_data, order, T_switch, T_max, T_rate_min, beta,
                     thermo_gas, thermo_ads=None, correct_background=True, bounds=[], plot_temperature=np.linspace(100,400),
-                    p=101325, initial_guess_theta=0.5, guess_b=0.1, calculate_eq_coverage=True, theta_range=None):
+                    p=101325, initial_guess_theta=0.5, guess_b=0.1, calculate_eq_coverage=True, theta_range=None, fit_quad_ads_ads=False):
 
         """Perform the temperature programmed desorption analysis for a surface 
         based on configurational entropy an interaction parameters and a zero coverage
@@ -66,6 +66,7 @@ class PlotTPD():
         self.beta = beta
         self.calculate_eq_coverage = calculate_eq_coverage
         self.theta_range = theta_range
+        self.fit_quad_ads_ads = fit_quad_ads_ads
 
         # Results
         self.norm_results = {} # Normalised results 
@@ -73,7 +74,6 @@ class PlotTPD():
         self.theta_eq = {} # Equilibrium coverages
         self.theta_eq_p = {} # Equilibrium coverages positive error
         self.theta_eq_n = {} # Equilibrium coverages negative error
-        self.E0 = {} # Zero coverage energy
         self.dG = {} # dG for adsorption
         self.temperature_range = {} # temperature range to plot
 
@@ -179,25 +179,46 @@ class PlotTPD():
                 guess_E0 = np.mean(self.results[surface_index][exposure]['Ed']) 
                 guess_b = self.guess_b 
 
-                popt, pcov = curve_fit(\
-                lambda temp, E0, b, theta_sat:  self._fit_Ed_theta(temp, E0, b, theta_sat,
-                                                self.results[surface_index][exposure]['theta_rel']),
-                                                xdata = temperature_fit,
-                                                ydata = self.results[surface_index][exposure]['Ed'],
-                                                p0 = [guess_E0, guess_b, self.initial_guess_theta], 
-                                                )
-
-                residual = self._least_sq_Ed_theta(popt, temperature=temperature_fit,
-                    theta_rel = self.results[surface_index][exposure]['theta_rel'],
-                    Ed_real = self.results[surface_index][exposure]['Ed'],)
+                if not self.fit_quad_ads_ads:
+                    popt, pcov = curve_fit(\
+                    lambda temp, E0, b, theta_sat:  self._fit_Ed_theta(temp, E0, b, theta_sat,
+                                                    self.results[surface_index][exposure]['theta_rel']),
+                                                    xdata = temperature_fit,
+                                                    ydata = self.results[surface_index][exposure]['Ed'],
+                                                    p0 = [guess_E0, guess_b, self.initial_guess_theta], 
+                                                    )
+                else:
+                    popt, pcov = curve_fit(\
+                    lambda temp, E0, b1, b2, theta_sat:  self._fit_quad_Ed_theta(temp, E0, b1, b2, theta_sat,
+                                                    self.results[surface_index][exposure]['theta_rel']),
+                                                    xdata = temperature_fit,
+                                                    ydata = self.results[surface_index][exposure]['Ed'],
+                                                    p0 = [guess_E0] + guess_b + [self.initial_guess_theta], 
+                                                    )
+                if not self.fit_quad_ads_ads:
+                    residual = self._least_sq_Ed_theta(popt, temperature=temperature_fit,
+                        theta_rel = self.results[surface_index][exposure]['theta_rel'],
+                        Ed_real = self.results[surface_index][exposure]['Ed'],)
+                else:
+                    residual = self._least_sq_quad_Ed_theta(popt, temperature=temperature_fit,
+                        theta_rel = self.results[surface_index][exposure]['theta_rel'],
+                        Ed_real = self.results[surface_index][exposure]['Ed'],)
                 
                 self.results[surface_index][exposure]['E0'] = popt[0]
-                self.results[surface_index][exposure]['b'] = popt[1]
-                self.results[surface_index][exposure]['theta_sat'] = popt[2]
+                if not self.fit_quad_ads_ads:
+                    self.results[surface_index][exposure]['b'] = popt[1]
+                    self.results[surface_index][exposure]['theta_sat'] = popt[2]
+                else:
+                    self.results[surface_index][exposure]['b'] = popt[1:3]
+                    self.results[surface_index][exposure]['theta_sat'] = popt[3]
 
                 self.results[surface_index][exposure]['error'] = residual
-                self.results[surface_index][exposure]['Ed_fitted'] = self._fit_Ed_theta(temperature_fit, \
-                                                *popt, self.results[surface_index][exposure]['theta_rel']) 
+                if not self.fit_quad_ads_ads:
+                    self.results[surface_index][exposure]['Ed_fitted'] = self._fit_Ed_theta(temperature_fit, \
+                                                    *popt, self.results[surface_index][exposure]['theta_rel']) 
+                else:
+                    self.results[surface_index][exposure]['Ed_fitted'] = self._fit_quad_Ed_theta(temperature_fit, \
+                                                    *popt, self.results[surface_index][exposure]['theta_rel'])
                 
                 self.results[surface_index][exposure]['configurational_entropy'] = \
                     self._get_configuration_entropy_contribution(temperature_fit, \
@@ -223,17 +244,17 @@ class PlotTPD():
                 self.theta_eq[surface_index][exposure], self.dG[surface_index][exposure]\
                  = self._get_equilibirum_coverage(
                             E0 = self.results[surface_index][exposure]['E0'],
-                            b = self.results[surface_index][exposure]['b'], 
+                            b = self.results[surface_index][exposure]['b'][0] if self.fit_quad_ads_ads else self.results[surface_index][exposure]['b'], 
                             )
                 self.theta_eq_p[surface_index][exposure], _ \
                  = self._get_equilibirum_coverage(
                             E0 = self.results[surface_index][exposure]['E0'] + self.results[surface_index][exposure]['error'], 
-                            b = self.results[surface_index][exposure]['b'], 
+                            b = self.results[surface_index][exposure]['b'][0] if self.fit_quad_ads_ads else self.results[surface_index][exposure]['b'],  
                             )
                 self.theta_eq_n[surface_index][exposure], _ \
                  = self._get_equilibirum_coverage(
                             E0 = self.results[surface_index][exposure]['E0'] - self.results[surface_index][exposure]['error'],
-                            b = self.results[surface_index][exposure]['b'],
+                            b = self.results[surface_index][exposure]['b'][0] if self.fit_quad_ads_ads else self.results[surface_index][exposure]['b'],
                             )
                 
 
@@ -277,6 +298,19 @@ class PlotTPD():
             Ed = E_0 \
                 - kB * temperature[i] * np.log(theta_sat * theta_rel[i] / ( 1 - theta_sat * theta_rel[i] ) ) \
                 - b * theta_rel[i] * theta_sat
+            Ed_fit.append(Ed)
+        residual = Ed_real - Ed_fit
+        mea = np.mean([np.abs(a) for a in residual])
+        return mea 
+
+    def _least_sq_quad_Ed_theta(self, x, temperature, theta_rel, Ed_real):
+        E_0, b1, b2, theta_sat = x
+        Ed_fit = []
+        for i in range(len(temperature)):
+            Ed = E_0 \
+            -  kB * temperature[i] * np.log(theta_sat*theta_rel[i] / ( 1 - theta_sat*theta_rel[i]))
+            -  b1 * theta_rel[i] * theta_sat
+            -  b2 * (theta_rel[i] * theta_sat)**2
             Ed_fit.append(Ed)
         residual = Ed_real - Ed_fit
         mea = np.mean([np.abs(a) for a in residual])
@@ -333,6 +367,29 @@ class PlotTPD():
             Ed = E_0 \
             -  kB * temperature[i] * np.log(theta_sat*theta_rel[i] / ( 1 - theta_sat*theta_rel[i]))
             -  b * theta_rel[i] * theta_sat
+            Ed_all.append(Ed)
+        return Ed_all
+
+    def _fit_quad_Ed_theta(self, temperature, E_0, b1, b2, theta_sat, theta_rel):
+        """ Fit the Ed vs theta relationship using the configurational entropy
+        and the ads-ads interaction which has a quadratic dependence.
+
+        Args:
+            temperature (list): temperature range
+            E_0 (float): energy at zero coverage
+            b (float): interaction parameter
+            theta_sat (float): saturation coverage of TPD 
+            theta_rel (float): relative coverage 
+
+        Returns:
+            list: Desorption energy based on fit
+        """
+        Ed_all = []
+        for i in range(len(temperature)):
+            Ed = E_0 \
+            -  kB * temperature[i] * np.log(theta_sat*theta_rel[i] / ( 1 - theta_sat*theta_rel[i]))
+            -  b1 * theta_rel[i] * theta_sat
+            -  b2 * (theta_rel[i] * theta_sat)**2
             Ed_all.append(Ed)
         return Ed_all
 
